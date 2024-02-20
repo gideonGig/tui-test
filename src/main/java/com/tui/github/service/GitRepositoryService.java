@@ -1,7 +1,11 @@
 package com.tui.github.service;
 
-import com.tui.github.model.RepositoryModel;
+import java.util.List;
+
+import com.tui.github.model.Repository;
+
+import reactor.core.publisher.Mono;
 
 public interface GitRepositoryService {
-    RepositoryModel getUserRepository(String userName);
+   Mono<List<Repository>> getUserRepositoryWithBranches(String userName, String authorizationToken);
 }
