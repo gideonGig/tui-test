@@ -6,6 +6,6 @@ import lombok.Setter;
 @Getter
 @Setter
 public class Branch {
-    public String name;
-    public String lastCommitSha;
+    private String name;
+    private String lastCommitSha;
 }

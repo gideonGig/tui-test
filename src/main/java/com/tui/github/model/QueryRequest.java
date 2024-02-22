@@ -6,6 +6,6 @@ import lombok.Setter;
 @Getter
 @Setter
 public class QueryRequest {
-    public String query;
+    private String query;
     
 }

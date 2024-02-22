@@ -1,0 +1,64 @@
+openapi: 3.0.0
+info:
+  title: GitHub API
+  description: REST API for accessing GitHub repositories and branches
+  version: 1.0.0
+servers:
+  - url: http://localhost:5280
+paths:
+  /api/v1/github/gitrespository/{username}:
+    get:
+      summary: Get user repositories with branches
+      description: Retrieves the repositories of a user along with their branches
+      parameters:
+        - name: username
+          in: path
+          description: GitHub username
+          required: true
+          schema:
+            type: string
+        - name: Authorization
+          in: header
+          description: Authentication token
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Repository'
+        '401':
+          description: Unauthorized - Authentication token is missing or invalid
+        '404':
+          description: User not found
+        '500':
+          description: Internal server error
+components:
+  schemas:
+    Repository:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the repository
+        ownerLogin:
+          type: string
+          description: Login of the repository owner
+        branches:
+          type: array
+          items:
+            $ref: '#/components/schemas/Branch'
+    Branch:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the branch
+        lastCommitSha:
+          type: string
+          description: SHA of the last commit on the branch
