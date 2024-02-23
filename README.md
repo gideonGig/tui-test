@@ -12,8 +12,7 @@ The GitHub Repository Service is a Spring Boot application that provides functio
 - [Configuration](#configuration)
 - [Usage](#usage)
 - [Testing](#testing)
-- [Contributing](#contributing)
-- [License](#license)
+
 
 ## Features
 
@@ -42,3 +41,20 @@ The GitHub Repository Service is a Spring Boot application that provides functio
 
    ```bash
    git clone https://github.com/your_username/github-repository-service.git
+
+
+2. Build the project using Maven:
+
+   ```bash
+   ./mvnw clean install
+
+
+## Configuration
+Before running the application, make sure to set the following configuration properties:
+
+. github.baseurl: Base URL for GitHub API.
+. github.clientSecret: Client secret for GitHub OAuth application.
+. github.clientId: Client ID for GitHub OAuth application.
+You can set these properties in the application.properties file or as environment variables.
+
+

@@ -1,5 +1,6 @@
 package com.tui.github.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,11 +18,12 @@ import reactor.core.publisher.Mono;
 @RestController
 @Slf4j
 @RequestMapping(value = "api/v1/github", produces = MediaType.APPLICATION_JSON_VALUE)
-public class GithubContoller {
+public class GithubController {
 
     private final GitRepositoryService _gitRepositoryService;
 
-    public GithubContoller(GitRepositoryService gitRepositoryService) {
+    @Autowired
+    public GithubController(GitRepositoryService gitRepositoryService) {
         _gitRepositoryService = gitRepositoryService;
     }
 
@@ -32,7 +34,7 @@ public class GithubContoller {
            @RequestParam(value="pageSizeOfRepository", defaultValue = "100") int pageSizeOfRepository,
            @RequestParam(value="pageSizeOfBranch", defaultValue = "100") int pageSizeOfBranch) {
         log.info(String.format("Getting %s repository with its branches", userName));
-        return _gitRepositoryService.getUserRepositoryWithBranches(userName, authToken, pageSizeOfRepository, pageSizeOfBranch);
+        return _gitRepositoryService.getAllUserRepositoryWithBranches(userName, authToken, pageSizeOfRepository, pageSizeOfBranch);
     }
 
 }

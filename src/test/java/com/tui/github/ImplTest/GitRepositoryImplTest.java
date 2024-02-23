@@ -1,69 +1,142 @@
 package com.tui.github.ImplTest;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import org.junit.jupiter.api.BeforeEach;
+import com.tui.github.model.Repository;
 import org.junit.jupiter.api.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.mockito.junit.MockitoJUnitRunner;
-import org.springframework.web.reactive.function.client.WebClient;
-
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import com.tui.github.exception.GitResponseStatusException;
 import com.tui.github.model.Repositories;
 import com.tui.github.service.GitRepositoryService;
 
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-@RunWith(MockitoJUnitRunner.class)
+import java.util.Arrays;
+import java.util.List;
+
+
+@ExtendWith(MockitoExtension.class)
 public class GitRepositoryImplTest {
-
     @Mock
-    private WebClient webClient;
-
-    @Mock
-    private GitRepositoryService gitRepositoryService; // Using the interface
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.initMocks(this);
-    }
+    private GitRepositoryService gitRepositoryService;
 
     @Test
-    void testGetUserRepositoryWithBranches_Success() {
-        // Mocked response from GitHub API
-        String mockJsonResponse = "{\"data\": { \"user\": { \"repositories\": { \"nodes\": [ { \"name\": \"repo1\", \"owner\": { \"login\": \"user1\" }, \"refs\": { \"nodes\": [ { \"name\": \"master\", \"target\": { \"oid\": \"abc123\" } } ], \"pageInfo\": { \"hasNextPage\": false } } } ], \"pageInfo\": { \"hasNextPage\": false } } } }";
+    public void test_that_when_success_all_repsoitories_are_merged() {
 
-        // Mocking WebClient behavior
-        when(webClient.post().uri(anyString()).header(anyString(), anyString()).bodyValue(any()).retrieve().bodyToMono(String.class))
-                .thenReturn(Mono.just(mockJsonResponse));
+        Repositories repositories1 = new Repositories();
+        repositories1.setRepositoryHasNextPage(true);
+        repositories1.setEndCursor("cursor1");
+        Repositories repositories2 = new Repositories();
+        repositories2.setRepositoryHasNextPage(false);
+        repositories1.setEndCursor("cursor2");
 
-        // Test the service method
-        when(gitRepositoryService.getUserRepositoryWithBranches(anyString(), anyString(), anyInt(), anyInt()))
-                .thenReturn(Mono.just(getMockRepositories()));
+        when(gitRepositoryService.getAllUserRepositoryWithBranches(anyString(), anyString(), anyInt(), anyInt()))
+                .thenReturn(Mono.just(repositories1))
+                .thenReturn(Mono.just(repositories2));
 
-        // Use gitRepositoryService instead of GitRepositoryServiceImpl
-        Mono<Repositories> resultMono = gitRepositoryService.getUserRepositoryWithBranches("username", "token", 100, 100);
+        // Invoke the method to be tested
+        Mono<Repositories> result = gitRepositoryService.getAllUserRepositoryWithBranches("username", "token", 20, 20);
 
-        // Verify the result
-        StepVerifier.create(resultMono)
-                .expectNextMatches(repositories -> {
-                    // Verify repositories
-                    // Verify repository details
-                    // Verify branch details
-                    return true; // Add your verification logic here
-                })
+        // Verify the result using StepVerifier
+        StepVerifier.create(result)
+                .expectNextMatches(repositories -> repositories != null && repositories.getEndCursor().equals("cursor2"))
                 .verifyComplete();
     }
 
-    // Add more test cases as required
+   @Test
+    public void test_user_not_found_throw_error() {
+    
+        // Define test data
+        String userName = "username";
+        String authToken = "invalidToken"; // Invalid or unauthorized token
 
-    // Helper method to create a mock Repositories object
-    private Repositories getMockRepositories() {
-        // Create and return a mock Repositories object
-        return new Repositories();
+        // Mock the behavior of the service method to throw an exception when an unauthorized user is detected
+        when(gitRepositoryService.getAllUserRepositoryWithBranches(anyString(), anyString(), anyInt(), anyInt()))
+                .thenThrow(new GitResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        // Invoke the method with the invalid token and verify that it throws the expected exception
+        assertThrows(GitResponseStatusException.class, () -> {
+            Mono<Repositories> result = gitRepositoryService.getAllUserRepositoryWithBranches(userName, authToken, 20, 20);
+        });
     }
+
+
+    @Test
+    public void test_map_response_success() throws Exception {
+        String jsonString = "{" +
+                "\"data\": {" +
+                "\"user\": {" +
+                "\"repositories\": {" +
+                "\"pageInfo\": {" +
+                "\"hasNextPage\": true," +
+                "\"endCursor\": \"Y3Vyc29yOnYyOpHOHcbR1w==\"" +
+                "}," +
+                "\"nodes\": [" +
+                "{" +
+                "\"name\": \"gidcode\"," +
+                "\"owner\": {" +
+                "\"login\": \"gideonGig\"" +
+                "}," +
+                "\"refs\": {" +
+                "\"pageInfo\": {" +
+                "\"hasNextPage\": false," +
+                "\"endCursor\": null" +
+                "}," +
+                "\"nodes\": []" +
+                "}" +
+                "}" +
+                "]" +
+                "}}}}";
+
+
+      Mono<Repositories> repositories =  Repositories.mapResponse(jsonString);
+      assertEquals(repositories.block().getRepositories().size(), 1);
+      assertEquals(repositories.block().isRepositoryHasNextPage(), true);
+      assertEquals(repositories.block().getEndCursor(), "Y3Vyc29yOnYyOpHOHcbR1w==");
+
+    }
+
+    @Test
+    public void testMergeRepositories() {
+
+        Repository repo1 = new Repository();
+        repo1.setName("branch1");
+        repo1.setOwnerLogin("ownwer1");
+        Repository repo2 = new Repository();
+        repo2.setName("branch2");
+        repo2.setOwnerLogin("ownwer2");
+
+
+        Repositories repositories1 = new Repositories();
+        repositories1.setRepositories(Arrays.asList(repo1));
+        repositories1.setRepositoryHasNextPage(true);
+
+        Repositories repositories2 = new Repositories();
+        repositories2.setRepositories(Arrays.asList(repo2));
+        repositories2.setRepositoryHasNextPage(false);
+
+        // Call the mergeRepositories method
+        Repositories mergedRepositories = Repositories.mergeRepositories(repositories1, repositories2);
+
+        // Verify the merged repositories
+        List<Repository> mergedList = mergedRepositories.getRepositories();
+        assertEquals(2, mergedList.size());
+        assertEquals("branch1", mergedList.get(0).getName());
+        assertEquals("branch2", mergedList.get(1).getName());
+
+        //assert first repository Nextpage is set at True
+        assertTrue(repositories1.isRepositoryHasNextPage());
+
+        //assert that merged repository nextpage is set at the repository2
+        assertFalse(mergedRepositories.isRepositoryHasNextPage());
+    }
+
+
 
 }

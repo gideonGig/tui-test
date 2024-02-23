@@ -1,64 +1,110 @@
 openapi: 3.0.0
 info:
-  title: GitHub API
-  description: REST API for accessing GitHub repositories and branches
+  title: GitHub Repository Service API
+  description: API for fetching GitHub repositories and their branches
   version: 1.0.0
-servers:
-  - url: http://localhost:5280
 paths:
-  /api/v1/github/gitrespository/{username}:
+  /api/v1/github/gitrepository/{username}:
     get:
-      summary: Get user repositories with branches
-      description: Retrieves the repositories of a user along with their branches
+      summary: Get GitHub repositories for a user with their branches
+      description: |
+        Fetches the repositories of a GitHub user along with their branches.
+        This endpoint returns the repositories owned by the specified GitHub user and includes information about each repository's branches.
       parameters:
         - name: username
           in: path
-          description: GitHub username
+          description: The username of the GitHub user
           required: true
           schema:
             type: string
-        - name: Authorization
-          in: header
-          description: Authentication token
-          required: true
+        - name: pageSizeOfRepository
+          in: query
+          required: false
           schema:
-            type: string
+            type: integer
+            default: 100
+        - name: pageSizeOfBranch
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
       responses:
         '200':
-          description: Successful response
+          description: Successful response containing GitHub repositories and branches
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Repository'
-        '401':
-          description: Unauthorized - Authentication token is missing or invalid
+                $ref: '#/components/schemas/RepositoriesResponse'
+        '400':
+          description: Bad request - Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: User not found
+          description: GitHub user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
+    RepositoriesResponse:
+      type: object
+      properties:
+        repositories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Repository'
+        repositoryHasNextPage:
+          type: boolean
+      description: Response containing a list of GitHub repositories and pagination information.
     Repository:
       type: object
       properties:
         name:
           type: string
-          description: Name of the repository
+          description: The name of the GitHub repository.
         ownerLogin:
           type: string
-          description: Login of the repository owner
+          description: The username of the owner of the GitHub repository.
+        branches:
+          $ref: '#/components/schemas/Branches'
+      description: Represents a GitHub repository and its branches.
+    Branches:
+      type: object
+      properties:
         branches:
           type: array
           items:
             $ref: '#/components/schemas/Branch'
+        branchHasNextPage:
+          type: boolean
+      description: Represents a list of branches for a GitHub repository and pagination information.
     Branch:
       type: object
       properties:
         name:
           type: string
-          description: Name of the branch
+          description: The name of the branch in the GitHub repository.
         lastCommitSha:
           type: string
-          description: SHA of the last commit on the branch
+          description: The SHA of the last commit in the branch.
+      description: Represents a branch in a GitHub repository.
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          description: The HTTP status code of the error response.
+        message:
+          type: string
+          description: A message describing the error.
+      description: Represents an error response returned by the API.

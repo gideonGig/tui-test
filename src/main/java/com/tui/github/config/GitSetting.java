@@ -12,8 +12,4 @@ public class GitSetting {
     public String authBaseurl;
     @Value("${github.baseurl}")
     public String baseUrl;
-    @Value("${github.clientSecret}")
-    public String clientSecret;
-    @Value("${github.clientId}")
-    public String clientId;
 }

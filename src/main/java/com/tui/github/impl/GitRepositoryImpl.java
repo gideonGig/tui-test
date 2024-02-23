@@ -1,20 +1,11 @@
 package com.tui.github.impl;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tui.github.exception.GitResponseStatusException;
-import com.tui.github.model.Branch;
-import com.tui.github.model.Branches;
 import com.tui.github.model.QueryRequest;
 import com.tui.github.model.Repositories;
-import com.tui.github.model.Repository;
 import com.tui.github.model.UserResponse;
 import com.tui.github.service.GitRepositoryService;
 
@@ -30,12 +21,16 @@ public class GitRepositoryImpl implements GitRepositoryService {
     public GitRepositoryImpl(WebClient webClient) {
         this.webClient = webClient;
     }
-
+   
     @Override
-    public Mono<Repositories> getUserRepositoryWithBranches(String userName, String authorizationToken,
-            int pageSizeOfRepository, int pageSizeOfBranch) {
+    public Mono<Repositories> getAllUserRepositoryWithBranches(String userName, String authorizationToken, int pageSizeOfRepository, int pageSizeOfBranch) {
+       return  getAllRepositories(userName, authorizationToken, pageSizeOfRepository, pageSizeOfBranch, null);
+    }
+ 
+   
+    private Mono<Repositories> getUserRepositoryWithBranches(String userName, String authorizationToken, int pageSizeOfRepository, int pageSizeOfBranch, String endCursor) {
         QueryRequest query = new QueryRequest();
-        query.setQuery(getQuery(userName, pageSizeOfRepository, pageSizeOfBranch));
+        query.setQuery(getQuery(userName, pageSizeOfRepository, pageSizeOfBranch, endCursor));
         return getUser(userName, authorizationToken)
                 .flatMap(userResponse -> {
                     return webClient.post()
@@ -44,57 +39,26 @@ public class GitRepositoryImpl implements GitRepositoryService {
                             .bodyValue(query)
                             .retrieve()
                             .bodyToMono(String.class)
-                            .flatMap(response -> mapResponse(response))
+                            .flatMap(Repositories::mapResponse)
                             .onErrorResume(error -> {
-                                log.error("Error occurred while processing GraphQL response", error);
+                                log.error(String.format("Error occurred while processing GraphQL response %s: response is : %s", error));
                                 return Mono.error(
                                         new RuntimeException("Error occurred while processing GraphQL response"));
                             });
                 });
     }
-    
-    private Mono<Repositories> mapResponse(String jsonResponse) {
-        Repositories repositories = new Repositories();
-        ObjectMapper objectMapper = new ObjectMapper();
-        return Mono.fromCallable(() -> {
-            List<Repository> repositoryList = new ArrayList<>();
-            JsonNode rootNode = objectMapper.readTree(jsonResponse);
-            JsonNode repositoriesNode = rootNode.path("data").path("user").path("repositories").path("nodes");
-            JsonNode isNextRepository = rootNode.path("data").path("user").path("repositories").path("pageInfo")
-                    .path("hasNextPage");
-
-            for (JsonNode repositoryNode : repositoriesNode) {
-                Repository repository = new Repository();
-                repository.setName(repositoryNode.path("name").asText());
-                repository.setOwnerLogin(repositoryNode.path("owner").path("login").asText());
-
-                Branches branches = new Branches();
-
-                List<Branch> branchList = new ArrayList<>();
-                JsonNode branchesNode = repositoryNode.path("refs").path("nodes");
-
-                boolean isNextBranchNode = repositoryNode.path("refs").path("pageInfo").path("hasNextPage").asBoolean();
-                for (JsonNode branchNode : branchesNode) {
-                    Branch branch = new Branch();
-                    branch.setName(branchNode.path("name").asText());
-                    branch.setLastCommitSha(branchNode.path("target").path("oid").asText());
-                    branchList.add(branch);
-                }
-                branches.setBranchHasNextPage(isNextBranchNode);
-                branches.setBranches(branchList);
-                repository.setBranches(branches);
-
-                repositoryList.add(repository);
-            }
-
-            repositories.setRepositories(repositoryList);
-            repositories.setRepositoryHasNextPage(isNextRepository.asBoolean());
-            return repositories;
-
-        }).onErrorMap(JsonProcessingException.class, e -> {
-            log.error("Error occurred while mapping JSON properties", e);
-            return new RuntimeException("Error occurred while mapping JSON properties", e);
-        });
+   
+    /** this returns a  list of all repsoitories of the user, github has a limit of 100 repsoitories per page */
+    private Mono<Repositories> getAllRepositories(String userName, String authorizationToken, int pageSizeOfRepository, int pageSizeOfBranch, String endCursor) {
+        return getUserRepositoryWithBranches(userName, authorizationToken, pageSizeOfRepository, pageSizeOfBranch, endCursor)
+                .flatMap(repositories -> {
+                    if (repositories.isRepositoryHasNextPage()) {
+                        return getAllRepositories(userName, authorizationToken, pageSizeOfRepository, pageSizeOfBranch, repositories.getEndCursor())
+                                .map(additionalRepositories -> Repositories.mergeRepositories(repositories, additionalRepositories));
+                    } else {
+                        return Mono.just(repositories);
+                    }
+                });
     }
 
     private Mono<UserResponse> getUser(String userName, String authorizationToken) {
@@ -109,11 +73,13 @@ public class GitRepositoryImpl implements GitRepositoryService {
     }
 
     /** GraphQL query string, to avoid multiple HTTP calls */
-    private String getQuery(String userName, int pageSizeOfRepository, int pageSizeOfBranch) {
+    private String getQuery(String userName, int pageSizeOfRepository, int pageSizeOfBranch, String endCursor) {
+        String afterClause = (endCursor != null) ? ", after: \"" + endCursor + "\"" : "";
+
         return String.format(
                 "query {" +
                         "   user(login: \"%s\") {" +
-                        "    repositories(isFork: false,  first: %d, after: null) {" +
+                        "    repositories(isFork: false,  first: %d%s) {" +
                         "       pageInfo {" +
                         "            hasNextPage" +
                         "            endCursor" +
@@ -146,7 +112,7 @@ public class GitRepositoryImpl implements GitRepositoryService {
                         "    }" +
                         "  }" +
                         "}",
-                userName, pageSizeOfRepository, pageSizeOfBranch);
+                userName, pageSizeOfRepository, afterClause, pageSizeOfBranch);
 
     }
 
