@@ -1,10 +1,9 @@
+FROM openjdk:20
 
-FROM adoptopenjdk/openjdk16:alpine-jre
+WORKDIR /usr/src/app
 
-WORKDIR /src/main
-
-COPY target/your-application.jar /usr/src/app/your-application.jar
+COPY target/github-0.0.1-SNAPSHOT.jar /usr/src/app/github.jar
 
 EXPOSE 8080
 
-CMD ["java", "-jar", "your-application.jar"]
+CMD ["java", "-jar", "github.jar"]
