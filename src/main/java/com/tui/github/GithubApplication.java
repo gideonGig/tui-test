@@ -1,4 +1,4 @@
- package com.tui.github;
+package com.tui.github;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

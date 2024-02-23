@@ -40,10 +40,8 @@ public class GitRepositoryImplTest {
                 .thenReturn(Mono.just(repositories1))
                 .thenReturn(Mono.just(repositories2));
 
-        // Invoke the method to be tested
         Mono<Repositories> result = gitRepositoryService.getAllUserRepositoryWithBranches("username", "token", 20, 20);
 
-        // Verify the result using StepVerifier
         StepVerifier.create(result)
                 .expectNextMatches(repositories -> repositories != null && repositories.getEndCursor().equals("cursor2"))
                 .verifyComplete();
@@ -51,16 +49,13 @@ public class GitRepositoryImplTest {
 
    @Test
     public void test_user_not_found_throw_error() {
-    
-        // Define test data
-        String userName = "username";
-        String authToken = "invalidToken"; // Invalid or unauthorized token
 
-        // Mock the behavior of the service method to throw an exception when an unauthorized user is detected
+        String userName = "username";
+        String authToken = "invalidToken";
+
         when(gitRepositoryService.getAllUserRepositoryWithBranches(anyString(), anyString(), anyInt(), anyInt()))
                 .thenThrow(new GitResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        // Invoke the method with the invalid token and verify that it throws the expected exception
         assertThrows(GitResponseStatusException.class, () -> {
             Mono<Repositories> result = gitRepositoryService.getAllUserRepositoryWithBranches(userName, authToken, 20, 20);
         });
@@ -121,19 +116,15 @@ public class GitRepositoryImplTest {
         repositories2.setRepositories(Arrays.asList(repo2));
         repositories2.setRepositoryHasNextPage(false);
 
-        // Call the mergeRepositories method
         Repositories mergedRepositories = Repositories.mergeRepositories(repositories1, repositories2);
 
-        // Verify the merged repositories
         List<Repository> mergedList = mergedRepositories.getRepositories();
         assertEquals(2, mergedList.size());
         assertEquals("branch1", mergedList.get(0).getName());
         assertEquals("branch2", mergedList.get(1).getName());
 
-        //assert first repository Nextpage is set at True
         assertTrue(repositories1.isRepositoryHasNextPage());
 
-        //assert that merged repository nextpage is set at the repository2
         assertFalse(mergedRepositories.isRepositoryHasNextPage());
     }
 

@@ -1,4 +1,4 @@
-package com.tui.github.ImplTest;
+package com.tui.github.ControllerTest;
 
 import com.tui.github.config.ResourceWebPropertiesConfig;
 import com.tui.github.controller.GithubController;
@@ -56,7 +56,6 @@ public class GithubControllerTest {
 
     @Test
     public void test_that_when_application_xml_header_is_invalid() {
-        // Arrange
         String authToken = "your-auth-token";
         String userName = "test-user";
         int pageSizeOfRepository = 100;
@@ -67,12 +66,11 @@ public class GithubControllerTest {
         when(gitRepositoryService.getAllUserRepositoryWithBranches(userName, authToken, pageSizeOfRepository, pageSizeOfBranch))
                 .thenReturn(Mono.just(expectedRepositories));
 
-        // Act & Assert
         webTestClient.get().uri("/api/v1/github/gitrespository/{username}", userName)
                 .header(HttpHeaders.AUTHORIZATION, authToken)
                 .header(HttpHeaders.ACCEPT, "application/xml")
                 .exchange()
-                .expectStatus().is5xxServerError()
+                .expectStatus().isBadRequest()
                 .expectBody(Repositories.class);
 
     }
